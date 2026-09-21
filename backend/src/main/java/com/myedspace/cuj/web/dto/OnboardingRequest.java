@@ -7,6 +7,6 @@ import jakarta.validation.constraints.Size;
 public record OnboardingRequest(
         @NotBlank String studentName,
         @NotBlank @Email String email,
-        @NotBlank @Size(min = 6, message = "must be at least 6 characters") String password
+        @NotBlank @Size(min = 10, max = 72, message = "must be between 10 and 72 characters") String password
 ) {
 }

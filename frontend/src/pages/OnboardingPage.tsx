@@ -80,11 +80,16 @@ export function OnboardingPage() {
                   id="password"
                   type="password"
                   required
-                  minLength={6}
+                  minLength={10}
+                  maxLength={72}
+                  aria-describedby="password-hint"
                   autoComplete="new-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
+                <p id="password-hint" className="hint">
+                  At least 10 characters.
+                </p>
 
                 {submitError && (
                   <p className="error" role="alert">
