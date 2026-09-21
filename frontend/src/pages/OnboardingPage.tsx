@@ -1,16 +1,17 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
-import type { AuthResponse, OnboardingInfo } from "../api/types";
+import { AsyncBoundary } from "../components/AsyncBoundary";
+import { useApiResource } from "../hooks/useApiResource";
+import { authResponseSchema, onboardingInfoSchema } from "../api/schemas";
 
 export function OnboardingPage() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  const [info, setInfo] = useState<OnboardingInfo | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const infoState = useApiResource(token ? `/onboarding/${token}` : null, onboardingInfoSchema);
 
   const [studentName, setStudentName] = useState("");
   const [email, setEmail] = useState("");
@@ -18,22 +19,13 @@ export function OnboardingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!token) return;
-    api
-      .get<OnboardingInfo>(`/onboarding/${token}`)
-      .then(setInfo)
-      .catch((err: Error) => setLoadError(err.message));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
-
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!token) return;
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const auth = await api.post<AuthResponse>(`/onboarding/${token}`, {
+      const auth = await api.post(`/onboarding/${token}`, authResponseSchema, {
         studentName,
         email,
         password,
@@ -47,68 +39,67 @@ export function OnboardingPage() {
     }
   }
 
-  if (loadError) {
-    return (
-      <div className="page page-narrow">
-        <h1>Invitation not found</h1>
-        <p className="error">{loadError}</p>
-      </div>
-    );
-  }
-
-  if (!info) {
-    return (
-      <div className="page page-narrow">
-        <p>Loading invitation...</p>
-      </div>
-    );
-  }
-
-  if (info.status === "COMPLETED") {
-    return (
-      <div className="page page-narrow">
-        <h1>Already onboarded</h1>
-        <p>This invitation has already been used. Try logging in instead.</p>
-      </div>
-    );
-  }
-
   return (
     <div className="page page-narrow">
-      <h1>Welcome!</h1>
-      <p>
-        Complete onboarding for your <strong>{info.course.subject}</strong> ({info.course.yearRange}) course,
-        purchased by {info.parentEmail}.
-      </p>
+      <AsyncBoundary state={infoState} loadingText="Loading invitation..." errorTitle="Invitation not found">
+        {(info) =>
+          info.status === "COMPLETED" ? (
+            <>
+              <h1>Already onboarded</h1>
+              <p>This invitation has already been used. Try logging in instead.</p>
+            </>
+          ) : (
+            <>
+              <h1>Welcome!</h1>
+              <p>
+                Complete onboarding for your <strong>{info.course.subject}</strong> ({info.course.yearRange})
+                course, purchased by {info.parentEmail}.
+              </p>
 
-      <form onSubmit={handleSubmit} className="form">
-        <label htmlFor="studentName">Your name</label>
-        <input
-          id="studentName"
-          required
-          value={studentName}
-          onChange={(e) => setStudentName(e.target.value)}
-        />
+              <form onSubmit={handleSubmit} className="form">
+                <label htmlFor="studentName">Your name</label>
+                <input
+                  id="studentName"
+                  required
+                  value={studentName}
+                  onChange={(e) => setStudentName(e.target.value)}
+                />
 
-        <label htmlFor="email">Your email</label>
-        <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+                <label htmlFor="email">Your email</label>
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
 
-        <label htmlFor="password">Choose a password</label>
-        <input
-          id="password"
-          type="password"
-          required
-          minLength={6}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+                <label htmlFor="password">Choose a password</label>
+                <input
+                  id="password"
+                  type="password"
+                  required
+                  minLength={6}
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
 
-        {submitError && <p className="error">{submitError}</p>}
+                {submitError && (
+                  <p className="error" role="alert">
+                    {submitError}
+                  </p>
+                )}
 
-        <button type="submit" disabled={submitting}>
-          {submitting ? "Activating..." : "Activate my account"}
-        </button>
-      </form>
+                <button type="submit" disabled={submitting}>
+                  {submitting ? "Activating..." : "Activate my account"}
+                </button>
+              </form>
+            </>
+          )
+        }
+      </AsyncBoundary>
     </div>
   );
 }

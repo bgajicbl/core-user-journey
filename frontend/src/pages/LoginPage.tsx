@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
-import type { AuthResponse } from "../api/types";
+import { authResponseSchema } from "../api/schemas";
 
 export function LoginPage() {
   const { login } = useAuth();
@@ -18,7 +18,7 @@ export function LoginPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const auth = await api.post<AuthResponse>("/auth/login", { email, password });
+      const auth = await api.post("/auth/login", authResponseSchema, { email, password });
       login(auth.token, auth.studentName);
       navigate("/lms");
     } catch (err) {
@@ -33,18 +33,30 @@ export function LoginPage() {
       <h1>Student login</h1>
       <form onSubmit={handleSubmit} className="form">
         <label htmlFor="email">Email</label>
-        <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+        <input
+          id="email"
+          type="email"
+          required
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
 
         <label htmlFor="password">Password</label>
         <input
           id="password"
           type="password"
           required
+          autoComplete="current-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
 
-        {error && <p className="error">{error}</p>}
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
 
         <button type="submit" disabled={submitting}>
           {submitting ? "Logging in..." : "Log in"}

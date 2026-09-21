@@ -1,4 +1,6 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
+import { setUnauthorizedHandler } from "../api/client";
 
 interface AuthState {
   token: string | null;
@@ -15,6 +17,25 @@ const NAME_KEY = "cuj.studentName";
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
   const [studentName, setStudentName] = useState<string | null>(() => localStorage.getItem(NAME_KEY));
+  const navigate = useNavigate();
+
+  const logout = useCallback(() => {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(NAME_KEY);
+    setToken(null);
+    setStudentName(null);
+  }, []);
+
+  // If a token is rejected as missing/invalid/expired by an authenticated request, force a
+  // logout and send the student back to /login rather than leaving them stuck on a page that
+  // will just keep failing every request.
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      logout();
+      navigate("/login", { replace: true });
+    });
+    return () => setUnauthorizedHandler(null);
+  }, [logout, navigate]);
 
   const value = useMemo<AuthState>(
     () => ({
@@ -26,14 +47,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setToken(newToken);
         setStudentName(newStudentName);
       },
-      logout: () => {
-        localStorage.removeItem(TOKEN_KEY);
-        localStorage.removeItem(NAME_KEY);
-        setToken(null);
-        setStudentName(null);
-      },
+      logout,
     }),
-    [token, studentName],
+    [token, studentName, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
