@@ -14,10 +14,20 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Optional;
+
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController {
+
+    /**
+     * A real BCrypt hash we compare against when no account matches the given email, so a
+     * request for an unknown email costs the same BCrypt comparison as one for a known email
+     * with the wrong password — otherwise the two cases are distinguishable by response time.
+     */
+    private static final String DUMMY_PASSWORD_HASH =
+            new BCryptPasswordEncoder().encode("dummy-password-used-only-to-equalize-login-timing");
 
     private final StudentRepository studentRepository;
     private final BCryptPasswordEncoder passwordEncoder;
@@ -25,14 +35,15 @@ public class AuthController {
 
     @PostMapping("/login")
     public AuthResponse login(@Valid @RequestBody LoginRequest request) {
-        Student student = studentRepository.findByEmailIgnoreCase(request.email())
-                .orElseThrow(() -> ApiException.unauthorized("Invalid email or password"));
+        Optional<Student> student = studentRepository.findByEmailIgnoreCase(request.email());
+        String hashToCheck = student.map(Student::getPasswordHash).orElse(DUMMY_PASSWORD_HASH);
+        boolean passwordMatches = passwordEncoder.matches(request.password(), hashToCheck);
 
-        if (!passwordEncoder.matches(request.password(), student.getPasswordHash())) {
+        if (student.isEmpty() || !passwordMatches) {
             throw ApiException.unauthorized("Invalid email or password");
         }
 
-        String jwt = jwtService.issueToken(student.getId(), student.getEmail());
-        return new AuthResponse(jwt, student.getId(), student.getName());
+        String jwt = jwtService.issueToken(student.get().getId(), student.get().getEmail());
+        return new AuthResponse(jwt, student.get().getId(), student.get().getName());
     }
 }

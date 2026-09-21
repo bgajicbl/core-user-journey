@@ -13,7 +13,10 @@ spring:
     show-sql: false
   h2:
     console:
-      enabled: true
+      # off by default: nothing in this app depends on it, and leaving a DB console enabled
+      # unconditionally is a real-world misconfiguration class, not just a theoretical one.
+      # Flip to true locally (never in the shipped image) if you need to poke at the H2 DB.
+      enabled: false
       path: /h2-console
 
 server:

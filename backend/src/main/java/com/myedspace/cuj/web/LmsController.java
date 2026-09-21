@@ -5,12 +5,11 @@ import com.myedspace.cuj.domain.Lesson;
 import com.myedspace.cuj.domain.Student;
 import com.myedspace.cuj.exception.ApiException;
 import com.myedspace.cuj.repository.LessonRepository;
-import com.myedspace.cuj.security.CurrentStudentResolver;
+import com.myedspace.cuj.security.CurrentStudent;
 import com.myedspace.cuj.web.dto.CourseDto;
 import com.myedspace.cuj.web.dto.DashboardResponse;
 import com.myedspace.cuj.web.dto.LessonDetailDto;
 import com.myedspace.cuj.web.dto.LessonSummaryDto;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,18 +18,20 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/** Authenticated-only LMS access: dashboard + lesson content, scoped to the student's purchased course. */
+/**
+ * Authenticated-only LMS access: dashboard + lesson content, scoped to the student's purchased
+ * course. Authentication itself is enforced by AuthInterceptor against the /api/lms/** path
+ * pattern (see WebConfig) — every endpoint here is protected structurally, not by convention.
+ */
 @RestController
 @RequestMapping("/api/lms")
 @RequiredArgsConstructor
 public class LmsController {
 
     private final LessonRepository lessonRepository;
-    private final CurrentStudentResolver currentStudentResolver;
 
     @GetMapping("/dashboard")
-    public DashboardResponse dashboard(HttpServletRequest request) {
-        Student student = currentStudentResolver.resolve(request);
+    public DashboardResponse dashboard(@CurrentStudent Student student) {
         Course course = student.getPurchase().getCourse();
 
         List<LessonSummaryDto> lessons = lessonRepository.findByCourseIdOrderByOrderIndexAsc(course.getId()).stream()
@@ -41,8 +42,7 @@ public class LmsController {
     }
 
     @GetMapping("/lessons/{lessonId}")
-    public LessonDetailDto lesson(HttpServletRequest request, @PathVariable Long lessonId) {
-        Student student = currentStudentResolver.resolve(request);
+    public LessonDetailDto lesson(@CurrentStudent Student student, @PathVariable Long lessonId) {
         Course course = student.getPurchase().getCourse();
 
         Lesson lesson = lessonRepository.findById(lessonId)

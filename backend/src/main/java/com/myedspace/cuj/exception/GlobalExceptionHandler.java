@@ -4,9 +4,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.ErrorResponseException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @Slf4j
 @RestControllerAdvice
@@ -37,6 +39,31 @@ public class GlobalExceptionHandler {
         log.warn("Rejected write due to a data integrity conflict", ex);
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(new ErrorResponse("This request conflicts with existing data — it may have already been processed"));
+    }
+
+    /**
+     * Covers Spring's "couldn't route this request" family — wrong HTTP method, unsupported
+     * media type, etc. These already carry the correct status; without this handler the
+     * catch-all below would flatten a routing-level 404/405/415 into a raw 500.
+     */
+    @ExceptionHandler(ErrorResponseException.class)
+    public ResponseEntity<ErrorResponse> handleErrorResponseException(ErrorResponseException ex) {
+        return toResponse(ex.getStatusCode(), ex.getBody() != null ? ex.getBody().getDetail() : null);
+    }
+
+    /**
+     * Unmapped paths (e.g. the H2 console when disabled, or any typo'd URL). Handled separately
+     * from ErrorResponseException above because NoResourceFoundException implements the
+     * ErrorResponse *interface* directly rather than extending ErrorResponseException.
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNoResourceFound(NoResourceFoundException ex) {
+        return toResponse(ex.getStatusCode(), ex.getBody() != null ? ex.getBody().getDetail() : null);
+    }
+
+    private ResponseEntity<ErrorResponse> toResponse(org.springframework.http.HttpStatusCode status, String detail) {
+        return ResponseEntity.status(status)
+                .body(new ErrorResponse(detail != null ? detail : "Request could not be processed"));
     }
 
     @ExceptionHandler(Exception.class)

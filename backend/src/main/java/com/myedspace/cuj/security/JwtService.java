@@ -16,8 +16,7 @@ import java.util.Optional;
 
 /**
  * Mints and validates the bearer tokens students use to access the LMS.
- * This is a deliberately simple, self-contained auth mechanism per the
- * assignment spec ("no real auth system required") - not a full security layer.
+ * This is a deliberately simple, self-contained auth mechanism.
  */
 @Service
 public class JwtService {
