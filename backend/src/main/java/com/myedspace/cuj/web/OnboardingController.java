@@ -14,6 +14,7 @@ import com.myedspace.cuj.web.dto.OnboardingRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -42,6 +43,13 @@ public class OnboardingController {
                 CourseDto.from(purchase.getCourse()));
     }
 
+    /**
+     * Transactional so the student creation and purchase status flip commit or roll back
+     * together. This does not remove the check-then-act race between concurrent requests
+     * for the same token/email (that's ultimately enforced by the DB's unique constraints
+     * on purchase_id/email); see GlobalExceptionHandler for how that race surfaces as 409.
+     */
+    @Transactional
     @PostMapping("/{token}")
     public AuthResponse completeOnboarding(@PathVariable String token, @Valid @RequestBody OnboardingRequest request) {
         Purchase purchase = findPurchaseByToken(token);

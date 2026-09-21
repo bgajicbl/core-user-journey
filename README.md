@@ -15,7 +15,7 @@ That's it — no other services required. The backend seeds three sample courses
 
 ### Local dev (without Docker)
 
-Requires a JDK 25 on `PATH`/`JAVA_HOME` (e.g. `brew install openjdk@25`) and Node 20+.
+Requires a JDK 25 on `PATH`/`JAVA_HOME` and Node 20+.
 
 ```bash
 # terminal 1
